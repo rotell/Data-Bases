@@ -33,11 +33,27 @@ for i in range(100):
         )
     )
 
+services = [
+    ('General checkup', 1500),
+    ('Vaccination', 1000),
+    ('X-ray', 2500),
+    ('Blood test', 1200),
+    ('Ultrasound', 2000),
+    ('Surgery', 8000)
+]
+
+for name, price in services:
+    cur.execute(
+        "INSERT INTO Service (service_name, price) VALUES (%s, %s)",
+        (name, price)
+    )
+
 # Генерация визитов
-for i in range(100):
+for i in range(250):
     cur.execute(
         """INSERT INTO Visit (doctor_id, pet_id, visit_date, status)
-           VALUES (%s,%s,%s,%s)""",
+           VALUES (%s,%s,%s,%s)
+           RETURNING visit_id""",
         (
             1,
             random.randint(1, 100),
@@ -45,6 +61,44 @@ for i in range(100):
             random.choice(['scheduled','completed','cancelled'])
         )
     )
+
+    visit_id = cur.fetchone()[0]
+
+    # случайное количество услуг
+    num_services = random.randint(1, 4)
+
+    selected_services = random.sample(range(1, len(services) + 1), num_services)
+
+    total_amount = 0
+
+    for service_id in selected_services:
+        # добавить услугу к визиту
+        cur.execute(
+            """INSERT INTO Visit_Service (visit_id, service_id)
+               VALUES (%s, %s)""",
+            (visit_id, service_id)
+        )
+
+        # получить цену услуги
+        cur.execute(
+            "SELECT price FROM Service WHERE service_id = %s",
+            (service_id,)
+        )
+        price = cur.fetchone()[0]
+        total_amount += price
+
+    # создать счет
+    cur.execute(
+        """INSERT INTO Bill (visit_id, amount, is_paid)
+           VALUES (%s, %s, %s)""",
+        (
+            visit_id,
+            total_amount,
+            random.choice([True, False])
+        )
+    )
+
+
 
 conn.commit()
 cur.close()
