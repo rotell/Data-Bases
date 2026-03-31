@@ -33,6 +33,65 @@ for i in range(100):
         )
     )
 
+employee_ids = []
+doctor_employee_ids = []
+
+roles = ['registrar', 'administrator', 'doctor']
+
+for i in range(20):
+    role = random.choice(roles)
+
+    cur.execute(
+        """INSERT INTO Employee (full_name, passport, phone, role)
+           VALUES (%s,%s,%s,%s)
+           RETURNING employee_id""",
+        (
+            f"Employee {i}",
+            f"EMP{i:07d}",
+            f"+7999000{i:03d}",
+            role
+        )
+    )
+
+    emp_id = cur.fetchone()[0]
+    employee_ids.append(emp_id)
+
+    if role == 'doctor':
+        doctor_employee_ids.append(emp_id)
+
+
+# минимум 10 врачей
+while len(doctor_employee_ids) < 10:
+    cur.execute(
+        """INSERT INTO Employee (full_name, passport, phone, role)
+           VALUES (%s,%s,%s,%s)
+           RETURNING employee_id""",
+        (
+            f"Doctor extra {len(doctor_employee_ids)}",
+            f"DOCX{len(doctor_employee_ids):05d}",
+            f"+7999111{len(doctor_employee_ids):03d}",
+            'doctor'
+        )
+    )
+
+    doctor_employee_ids.append(cur.fetchone()[0])
+
+
+doctor_ids = []
+
+for emp_id in doctor_employee_ids:
+    cur.execute(
+        """INSERT INTO Doctor (employee_id, specialization_id)
+           VALUES (%s,%s)
+           RETURNING doctor_id""",
+        (
+            emp_id,
+            random.randint(1, 2)
+        )
+    )
+
+    doctor_ids.append(cur.fetchone()[0])
+
 services = [
     ('General checkup', 1500),
     ('Vaccination', 1000),
@@ -55,7 +114,7 @@ for i in range(250):
            VALUES (%s,%s,%s,%s)
            RETURNING visit_id""",
         (
-            1,
+            random.choice(doctor_ids),
             random.randint(1, 100),
             datetime.now() - timedelta(days=random.randint(1, 365)),
             random.choice(['scheduled','completed','cancelled'])
