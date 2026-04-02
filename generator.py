@@ -2,6 +2,20 @@ import psycopg2
 import random
 from datetime import datetime, timedelta
 
+# ------------------------
+# НАСТРОЙКИ (меняешь тут)
+# ------------------------
+
+NUM_CLIENTS = 50
+NUM_PETS = 250
+NUM_EMPLOYEES = 20
+MIN_DOCTORS = 10
+NUM_VISITS = 250
+OBS_PETS_LIMIT = 100
+OBS_PER_INDICATOR = 10
+
+# ------------------------
+
 conn = psycopg2.connect(
     dbname="vet_clinic",
     user="postgres",
@@ -12,33 +26,66 @@ conn = psycopg2.connect(
 
 cur = conn.cursor()
 
-# Генерация клиентов
-for i in range(50):
+# ------------------------
+# Получаем реальные ID
+# ------------------------
+
+cur.execute("SELECT species_id FROM Species")
+species_ids = [row[0] for row in cur.fetchall()]
+
+cur.execute("SELECT indicator_id FROM Indicator")
+indicator_ids = [row[0] for row in cur.fetchall()]
+
+cur.execute("SELECT service_id FROM Service")
+service_ids = [row[0] for row in cur.fetchall()]
+
+cur.execute("SELECT specialization_id FROM Specialization")
+specialization_ids = [row[0] for row in cur.fetchall()]
+
+# ------------------------
+# Клиенты
+# ------------------------
+
+for i in range(NUM_CLIENTS):
     cur.execute(
         "INSERT INTO Client (passport, full_name, gender) VALUES (%s,%s,%s)",
         (f"PP{i:07d}", f"Client {i}", random.choice(['M','F']))
     )
 
-# Генерация питомцев
-for i in range(100):
+# получаем client_id
+cur.execute("SELECT client_id FROM Client")
+client_ids = [row[0] for row in cur.fetchall()]
+
+# ------------------------
+# Питомцы
+# ------------------------
+
+for i in range(NUM_PETS):
     cur.execute(
         """INSERT INTO Pet (client_id, species_id, nickname, age, weight)
            VALUES (%s,%s,%s,%s,%s)""",
         (
-            random.randint(1, 50),
-            random.randint(1, 4),
+            random.choice(client_ids),
+            random.choice(species_ids),   # ✔ фикс
             f"Pet_{i}",
             random.randint(1, 15),
             round(random.uniform(1.0, 40.0), 2)
         )
     )
 
-employee_ids = []
+# получаем pet_id
+cur.execute("SELECT pet_id FROM Pet")
+pet_ids = [row[0] for row in cur.fetchall()]
+
+# ------------------------
+# Employees + Doctors
+# ------------------------
+
 doctor_employee_ids = []
 
 roles = ['registrar', 'administrator', 'doctor']
 
-for i in range(20):
+for i in range(NUM_EMPLOYEES):
     role = random.choice(roles)
 
     cur.execute(
@@ -54,14 +101,12 @@ for i in range(20):
     )
 
     emp_id = cur.fetchone()[0]
-    employee_ids.append(emp_id)
 
     if role == 'doctor':
         doctor_employee_ids.append(emp_id)
 
-
-# минимум 10 врачей
-while len(doctor_employee_ids) < 10:
+# минимум врачей
+while len(doctor_employee_ids) < MIN_DOCTORS:
     cur.execute(
         """INSERT INTO Employee (full_name, passport, phone, role)
            VALUES (%s,%s,%s,%s)
@@ -76,46 +121,57 @@ while len(doctor_employee_ids) < 10:
 
     doctor_employee_ids.append(cur.fetchone()[0])
 
-
 doctor_ids = []
 
 for emp_id in doctor_employee_ids:
     cur.execute(
-        """INSERT INTO Doctor (employee_id, specialization_id)
-           VALUES (%s,%s)
+        """INSERT INTO Doctor (employee_id, specialization_id, species_id)
+           VALUES (%s,%s,%s)
            RETURNING doctor_id""",
         (
             emp_id,
-            random.randint(1, 2)
+            random.choice(specialization_ids),
+            random.choice(species_ids)
         )
     )
-
     doctor_ids.append(cur.fetchone()[0])
 
-services = [
-    ('General checkup', 1500),
-    ('Vaccination', 1000),
-    ('X-ray', 2500),
-    ('Blood test', 1200),
-    ('Ultrasound', 2000),
-    ('Surgery', 8000)
-]
+# ------------------------
+# Observation
+# ------------------------
 
-for name, price in services:
-    cur.execute(
-        "INSERT INTO Service (service_name, price) VALUES (%s, %s)",
-        (name, price)
-    )
+for pet_id in random.sample(pet_ids, min(OBS_PETS_LIMIT, len(pet_ids))):
 
-# Генерация визитов
-for i in range(250):
+    for indicator_id in indicator_ids:
+
+        base_value = random.uniform(10, 50)
+
+        for _ in range(OBS_PER_INDICATOR):
+
+            value = round(base_value + random.uniform(-5, 5), 2)
+
+            cur.execute(
+                """INSERT INTO Observation (pet_id, indicator_id, value)
+                   VALUES (%s,%s,%s)""",   # ✔ убрали observation_date
+                (
+                    pet_id,
+                    indicator_id,
+                    value
+                )
+            )
+
+# ------------------------
+# Visits
+# ------------------------
+
+for _ in range(NUM_VISITS):
     cur.execute(
         """INSERT INTO Visit (doctor_id, pet_id, visit_date, status)
            VALUES (%s,%s,%s,%s)
            RETURNING visit_id""",
         (
             random.choice(doctor_ids),
-            random.randint(1, 100),
+            random.choice(pet_ids),  # ✔ фикс
             datetime.now() - timedelta(days=random.randint(1, 365)),
             random.choice(['scheduled','completed','cancelled'])
         )
@@ -123,30 +179,23 @@ for i in range(250):
 
     visit_id = cur.fetchone()[0]
 
-    # случайное количество услуг
-    num_services = random.randint(1, 4)
-
-    selected_services = random.sample(range(1, len(services) + 1), num_services)
+    selected_services = random.sample(service_ids, random.randint(1, 4))
 
     total_amount = 0
 
     for service_id in selected_services:
-        # добавить услугу к визиту
         cur.execute(
             """INSERT INTO Visit_Service (visit_id, service_id)
                VALUES (%s, %s)""",
             (visit_id, service_id)
         )
 
-        # получить цену услуги
         cur.execute(
             "SELECT price FROM Service WHERE service_id = %s",
             (service_id,)
         )
-        price = cur.fetchone()[0]
-        total_amount += price
+        total_amount += cur.fetchone()[0]
 
-    # создать счет
     cur.execute(
         """INSERT INTO Bill (visit_id, amount, is_paid)
            VALUES (%s, %s, %s)""",
@@ -157,7 +206,7 @@ for i in range(250):
         )
     )
 
-
+# ------------------------
 
 conn.commit()
 cur.close()

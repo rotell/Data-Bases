@@ -75,6 +75,11 @@ CREATE TABLE Doctor (
     doctor_id SERIAL PRIMARY KEY,
     employee_id INT UNIQUE NOT NULL,
     specialization_id INT NOT NULL,
+    species_id INT NOT NULL,
+
+    FOREIGN KEY (species_id)
+        REFERENCES Species(species_id)
+        ON DELETE RESTRICT,
 
     FOREIGN KEY (employee_id)
         REFERENCES Employee(employee_id)
