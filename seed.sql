@@ -1,26 +1,5 @@
 -- Species
 INSERT INTO Species (species_name, description, latin_name) VALUES
--- ('Dog', 'Domestic dog', 'Labrador retriever'),
--- ('Dog', 'Domestic dog', 'Canis lupus familiaris'),
--- ('Cat', 'Domestic cat', 'Felis silvestris catus'),
--- ('Parrot', 'Bird species', 'Ara'),
--- ('Parrot', 'African grey parrot', 'Psittacus erithacus'),
--- ('Parrot', 'Macaw', 'Ara macao'),
--- ('Dog', 'German shepherd', 'Canis lupus familiaris'),
--- ('Cat', 'Siamese cat', 'Felis silvestris catus'),
--- ('Lizard', 'Bearded dragon', 'Pogona vitticeps'),
--- ('Spider', 'Tarantula', 'Theraphosidae'),
--- ('Chinchilla', 'Domestic chinchilla', 'Chinchilla lanigera'),
--- ('Gerbil', 'Mongolian gerbil', 'Meriones unguiculatus'),
--- ('Rabbit', 'Domestic rabbit', 'Oryctolagus cuniculus'),
--- ('Ferret', 'Domestic ferret', 'Mustela putorius furo'),
--- ('Hamster', 'Syrian hamster', 'Mesocricetus auratus'),
--- ('Guinea pig', 'Domestic guinea pig', 'Cavia porcellus'),
--- ('Bird', 'Budgerigar', 'Melopsittacus undulatus'),
--- ('Turtle', 'Red-eared slider', 'Trachemys scripta elegans'),
--- ('Fish', 'Goldfish', 'Carassius auratus'),
--- ('Snake', 'Ball python', 'Python regius');
--- Птицы
 ('Bird', 'Chicken', 'Gallus gallus domesticus'),
 ('Bird', 'Duck', 'Anas platyrhynchos domesticus'),
 ('Bird', 'Parrot - African Grey', 'Psittacus erithacus'),
