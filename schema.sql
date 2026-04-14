@@ -108,7 +108,7 @@ CREATE TABLE Visit (
 CREATE TABLE Service (
     service_id SERIAL PRIMARY KEY,
     service_name VARCHAR(100) NOT NULL,
-    price INT NOT NULL
+    price INT NOT NULL CHECK (price >= 0)
 );
 
 CREATE TABLE Visit_Service (
@@ -180,7 +180,7 @@ CREATE TABLE Event_Log (
     pet_id INT,
     bill_id INT,
     event_type VARCHAR(100),
-    event_time TIMESTAMP NOT NULL,
+    event_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     description TEXT,
 
     FOREIGN KEY (employee_id)
@@ -198,3 +198,64 @@ CREATE TABLE Event_Log (
         REFERENCES Pet(pet_id)
         ON DELETE RESTRICT
 );
+
+-- Trigger 1
+CREATE OR REPLACE FUNCTION check_doctor_species()
+RETURNS TRIGGER AS
+$$
+DECLARE
+    doctor_species INT;
+    pet_species INT;
+BEGIN
+    SELECT species_id INTO doctor_species
+    FROM Doctor
+    WHERE doctor_id = NEW.doctor_id;
+
+    SELECT species_id INTO pet_species
+    FROM Pet
+    WHERE pet_id = NEW.pet_id;
+
+    IF doctor_species <> pet_species THEN
+        RAISE EXCEPTION 
+        'Doctor cannot treat this animal (doctor species_id=%, pet species_id=%)',
+        doctor_species, pet_species;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_check_doctor_species
+BEFORE INSERT OR UPDATE ON Visit
+FOR EACH ROW
+EXECUTE FUNCTION check_doctor_species();
+
+
+-- Trigger 2
+CREATE OR REPLACE FUNCTION check_visit_status()
+RETURNS TRIGGER AS
+$$
+DECLARE
+    visit_status VARCHAR(20);
+BEGIN
+    SELECT status INTO visit_status
+    FROM Visit
+    WHERE visit_id = NEW.visit_id;
+
+    IF visit_status IS NULL THEN
+        RAISE EXCEPTION 'Visit not found';
+    END IF;
+
+    IF visit_status = 'cancelled' THEN
+        RAISE EXCEPTION 
+        'Cannot add service to cancelled visit (visit_id=%)', NEW.visit_id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_check_visit_status
+BEFORE INSERT ON Visit_Service
+FOR EACH ROW
+EXECUTE FUNCTION check_visit_status();
