@@ -217,8 +217,7 @@ BEGIN
 
     IF doctor_species <> pet_species THEN
         RAISE EXCEPTION 
-        'Doctor cannot treat this animal (doctor species_id=%, pet species_id=%)',
-        doctor_species, pet_species;
+        'Doctor cannot treat this animal (doctor species_id=%, pet species_id=%)', doctor_species, pet_species;
     END IF;
 
     RETURN NEW;
